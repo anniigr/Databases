@@ -75,7 +75,7 @@ Takes `@email` and `@course_id`, handles the whole enrollment flow.
 | 1 | Fixed 5% | −5% of base price |
 | n ≥ 2 | Loyalty | −(n + 6)% of base price |
 
-Everything runs inside a single transaction. If anything fails — validation, insert, whatever — it rolls back completely.
+Everything runs inside a single transaction. 
 
 ```sql
 BEGIN TRY

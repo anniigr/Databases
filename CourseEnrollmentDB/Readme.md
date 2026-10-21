@@ -1,11 +1,4 @@
-# 🗄️ edu_courses — Course Enrollment Database
-
-<p align="left">
-  <img src="https://img.shields.io/badge/MS%20SQL%20Server-CC2927?style=for-the-badge&logo=microsoftsqlserver&logoColor=white"/>
-  <img src="https://img.shields.io/badge/T--SQL-0078D4?style=for-the-badge&logo=microsoftsqlserver&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Stored%20Procedures-4CAF50?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/Transactions-ACID-blue?style=for-the-badge"/>
-</p>
+# edu_courses — Course Enrollment Database (T-SQL)
 
 ## Overview
 
@@ -43,6 +36,8 @@ A few deliberate choices:
 | `script_3.sql` | Seed data — 3+ rows per table |
 | `task_3.sql` | Index definitions |
 | `procedure.sql` | Stored procedure: enroll a user into a course |
+| `smoke_test.sql` | Exercises the procedure: three enrollments (three discount tiers) and an error path |
+| `run.sh` | Recreates the database in a local SQL Server container and runs everything in order |
 
 ---
 
@@ -69,11 +64,14 @@ Takes `@email` and `@course_id`, handles the whole enrollment flow.
 
 **Discount logic:**
 
-| Previous enrollments | Type | Discount |
+| Previous enrollments (n) | Type (`discount_type`) | Discount |
 |:---|:---|:---|
-| 0 | Unconditional | −100 PLN flat |
-| 1 | Fixed 5% | −5% of base price |
-| n ≥ 2 | Loyalty | −(n + 6)% of base price |
+| 0 | `bezwarunkowy` (unconditional) | −100 PLN flat |
+| 1 | `staly 5%` (fixed) | −5% of base price |
+| n ≥ 2 | `lojalnosciowy` (loyalty) | −(n + 1)% of base price |
+
+The discount and the final price are stored on the enrollment row (`discount_value`,
+`total_cost`), so later price changes do not rewrite history.
 
 Everything runs inside a single transaction. 
 
@@ -92,3 +90,24 @@ END CATCH
 ---
 
 *Developed as part of the Databases course — Warsaw University of Technology*
+
+## Run it locally
+
+Needs Docker. The script starts Azure SQL Edge (SQL Server engine, runs on Apple silicon and x86), drops and recreates `edu_courses`, applies the scripts in order and runs the smoke test:
+
+```bash
+cd CourseEnrollmentDB
+./run.sh
+```
+
+Output of the smoke test on 2026-10-21 (three enrollments of a new user):
+
+```text
+group_id course_name base_price discount_type  discount_value total_cost
+1        SQL Basics  1000.0000  bezwarunkowy   100.0000       900.0000
+2        Python Pro  1500.0000  staly 5%       75.0000        1425.0000
+3        Power BI    2000.0000  lojalnosciowy  60.0000        1940.0000
+expected error: Course is inactive or does not exist.
+```
+
+Each enrollment lands in the first group of the course that still has a free seat; a course with no free seat raises error 50003 and the transaction rolls back.
